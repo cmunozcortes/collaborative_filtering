@@ -91,4 +91,31 @@ Both distribution seems to be exponentially distributed
 
 """
 Question 6: Compute the variance of the rating values received by each movie
-""""
+"""
+Rm_var = R.std(axis=0) ** 2
+bin_min, bin_max = Rm_var.min(), Rm_var.max()
+bins = bins = np.arange(bin_min, bin_max + bin_width, bin_width)  
+
+plt.figure()
+plt.hist(Rm_var, bins=bins)
+plt.xlabel("var of rating for each movie")
+plt.ylabel("num rating")
+plt.grid()
+plt.show(0)
+
+"""
+Question 7:
+"""
+
+
+"""
+Question 8:
+"""
+
+"""
+Question 9:
+"""
+
+"""
+Question 10:
+"""
