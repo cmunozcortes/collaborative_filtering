@@ -24,7 +24,7 @@ from surprise import Dataset
 
 from sklearn.metrics import roc_curve
 
-PLOT_RESULT=False
+PLOT_RESULT=True
 
 df = pd.read_csv("./ml-latest-small/ratings.csv")
 movies = df['movieId'].unique()
