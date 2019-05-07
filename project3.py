@@ -21,6 +21,11 @@ from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
 from surprise.prediction_algorithms.baseline_only import BaselineOnly
 from surprise.model_selection import cross_validate
 from surprise import Dataset
+from surprise import Reader
+from surprise import KNNWithMeans
+from surprise import KFold
+from surprise import accuracy
+
 
 from sklearn.metrics import roc_curve
 
@@ -118,21 +123,128 @@ if PLOT_RESULT:
   plt.show(0)
 
 """
-Question 11:
+Question 10:
 """
-data = Dataset.load_builtin('ml-100k')
-trainset = data.build_full_trainset()
+# Load the data
+reader = Reader(rating_scale=(0.5,5))
+data = Dataset.load_from_df(df[['userId','movieId','rating']], reader)
 
-#avg_rmse = []
-#avg_mae = []
-#ks = list(range(2, 100, 2))
-#
-#for k in ks:
-#  sim_options =  { 'name': 'pearson_baseline' }
-#  algo = KNNBasic(k=2, sim_options=sim_options)
-#  result = cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5)
-#  avg_rmse.append(result['test_rmse'].mean())
-#  avg_mae.append(result['test_mae'].mean())
+# Initialize kNNWithMeans with sim options
+sim_options = {
+    'name': 'pearson',
+    'user_based': True,
+}
+
+# Run k-NN with k=2 to k=100 in increments of 2
+k_values = range(2,101,2)
+results = []
+for k in k_values:
+  algo = KNNWithMeans(k=k, sim_options=sim_options)
+  results.append(cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=10, 
+                                verbose=True, n_jobs=-1))
+
+# Calculate mean scores
+mean_scores = np.zeros((50,2))
+for counter, result in enumerate(results):
+  mean_scores[counter,0] = np.mean(result['test_rmse'])
+  mean_scores[counter,1] = np.mean(result['test_mae'])
+
+# Plot mean scores
+if PLOT_RESULT:
+  # Plot RMSE
+  plt.figure(figsize=(15,5))
+  plt.subplot(1,2,1)
+  plt.plot(k_values, mean_scores[:,0],'-x')
+  plt.title('Mean RMSE for k-NN with Cross Validation')
+  plt.ylabel('Mean RSME')
+  plt.xlabel('Number of $k$ neighbors')
+
+  # Plot MAE
+  plt.subplot(1,2,2)
+  plt.plot(k_values, mean_scores[:,1],'-x')
+  plt.title('Mean MAE for k-NN with Cross Validation')
+  plt.ylabel('Mean MAE')
+  plt.xlabel('Number of $k$ neighbors')
+
+"""
+Question 12: k-NN on popular movies
+"""
+# Create array with movie id's in one column and their number of ratings on 
+# the other column
+movie_id, num_ratings_per_movie = np.unique(df['movieId'], return_counts=True)
+movies = np.column_stack((movie_id, num_ratings_per_movie))
+
+# Create array with movies with no more than 2 ratings
+unpopular_movies = movies[movies[:,1] <= 2, :]
+
+# Drop movies from dataset that exist in the unpopular movies set
+pop_movie_df = df[~df['movieId'].isin(unpopular_movies[:,0])]
+
+# Using cross-validation iterators
+kf = KFold(n_splits=10)
+k_rmse = 0
+rmse_pop = []
+
+# Iterate over all k values and calculate RMSE for each
+for k in k_values:
+  algo = KNNWithMeans(k=k, sim_options=sim_options)
+  for counter, [trainset, testset] in enumerate(kf.split(data)):
+    print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
+    
+    # Train algorithm with 9 unmodified trainsets
+    algo.fit(trainset)
+    
+    # Test with trimmed test set
+    trimmed_testset = [x for x in testset if x[1] in pop_movie_df['movieId']]
+    predictions = algo.test(trimmed_testset)
+    
+    # Compute and print Root Mean Squared Error (RMSE) for each fold
+    k_rmse += accuracy.rmse(predictions, verbose=True)
+  
+  #Compute mean of all rsme values for each k
+  print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+  rmse_pop.append(k_rmse / (counter+1))
+  k_rmse = 0
+
+print('RMSE values:')
+print(rmse_pop)
+
+# Plot RMSE versus k
+plt.plot(k_values, rmse_pop, '-x')
+plt.title('Average RMSE over $k$ with 10-fold cross validation')
+plt.xlabel('$k$ Nearest Neighbors')
+plt.ylabel('Average RMSE')
+
+"""
+Question 13: Unpopular movie trimmed set
+"""
+rmse_unpop = []
+
+for k in k_values:
+  algo = KNNWithMeans(k=k, sim_options=sim_options)
+  for counter, [trainset, testset] in enumerate(kf.split(data)):
+    print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
+    
+    # Train algorithm with 9 unmodified trainset
+    algo.fit(trainset)
+    
+    # Test with trimmed test set
+    trimmed_testset = [x for x in testset if x[1] not in pop_movie_df['movieId']]
+    predictions = algo.test(trimmed_testset)
+    
+    # Compute and print Root Mean Squared Error (RMSE) for each fold
+    k_rmse += accuracy.rmse(predictions, verbose=True)
+  
+  #Compute mean of all rsme values for each k
+  print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+  rmse_unpop.append(k_rmse / (counter+1))
+  k_rmse = 0
+
+# Plot RMSE versus k
+plt.plot(k_values, rmse_unpop, '-x')
+plt.title('Average RMSE over $k$ with 10-fold cross validation')
+plt.xlabel('$k$ Nearest Neighbors')
+plt.ylabel('Average RMSE')
 
 """
 Question 17
