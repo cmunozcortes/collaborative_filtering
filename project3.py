@@ -20,10 +20,10 @@ from surprise import KNNBasic, AlgoBase
 from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
 from surprise.prediction_algorithms.baseline_only import BaselineOnly
 from surprise.model_selection import cross_validate
+from surprise.model_selection import KFold
 from surprise import Dataset
 from surprise import Reader
 from surprise import KNNWithMeans
-from surprise import KFold
 from surprise import accuracy
 
 
