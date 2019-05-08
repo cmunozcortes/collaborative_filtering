@@ -29,7 +29,7 @@ from surprise import accuracy
 
 from sklearn.metrics import roc_curve
 
-PLOT_RESULT=True
+PLOT_RESULT=False
 
 df = pd.read_csv("./ml-latest-small/ratings.csv")
 movies = df['movieId'].unique()
@@ -201,6 +201,7 @@ for k in k_values:
   for counter, [trainset, testset] in enumerate(kf.split(data)):
     print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
     
+    pdb.set_trace()
     # Train algorithm with 9 unmodified trainsets
     algo.fit(trainset)
     
@@ -326,6 +327,7 @@ Question 30: Naive Collaborative Filtering
 
 rij_hat = mean(u_j)
 """
+
 class NaiveCollabFilter(AlgoBase):
   def __init__(self):
     AlgoBase.__init__(self)
@@ -348,3 +350,63 @@ class NaiveCollabFilter(AlgoBase):
 
 algo = NaiveCollabFilter()
 result = cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=10)
+
+"""
+Question 31: 
+"""
+k_rmse = 0
+rmse_pop = []
+
+algo = NaiveCollabFilter()
+for counter, [trainset, testset] in enumerate(kf.split(data)):
+  algo.fit(trainset)
+  trimmed_testset = [x for x in testset if x[1] in pop_movies]
+
+  predictions = algo.test(trimmed_testset)
+  k_rmse += accuracy.rmse(predictions, verbose=True)
+
+#Compute mean of all rsme values for each k
+print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+rmse_pop.append(k_rmse / (counter+1))
+
+print('RMSE values:')
+print(rmse_pop)
+
+"""
+Question 32: 
+"""
+k_rmse = 0
+rmse_pop = []
+algo = NaiveCollabFilter()
+for counter, [trainset, testset] in enumerate(kf.split(data)):
+  algo.fit(trainset)
+  trimmed_testset = [x for x in testset if x[1] not in pop_movies]
+
+  predictions = algo.test(trimmed_testset)
+  k_rmse += accuracy.rmse(predictions, verbose=True)
+
+#Compute mean of all rsme values for each k
+print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+rmse_pop.append(k_rmse / (counter+1))
+
+print('RMSE values:')
+print(rmse_pop)
+
+"""
+Question 33: 
+"""
+k_rmse = 0
+rmse_pop = []
+algo = NaiveCollabFilter()
+for counter, [trainset, testset] in enumerate(kf.split(data)):
+  algo.fit(trainset)
+  trimmed_testset = [x for x in testset if x[1] in high_var_movies]
+  predictions = algo.test(trimmed_testset)
+  k_rmse += accuracy.rmse(predictions, verbose=True)
+
+#Compute mean of all rsme values for each k
+print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+rmse_pop.append(k_rmse / (counter+1))
+
+print('RMSE values:')
+print(rmse_pop)
