@@ -5,35 +5,40 @@
 Dataset:
 http://files.grouplens.org/datasets/movielens/ml-latest-small.zip
 
+"""
+import pdb
+import pickle
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from surprise import KNNBasic, AlgoBase
+from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
+from surprise.prediction_algorithms.baseline_only import BaselineOnly
+from surprise.model_selection import cross_validate, KFold, train_test_split
+from surprise import Dataset, Reader, KNNWithMeans, accuracy
+
+from sklearn.metrics import roc_curve, auc
+
+
+"""
+Constants
+"""
+PLOT_RESULT = False 
+USE_PICKLED_RESULTS = False
+
+"""
+Loading data, computing rating matrix R
+
 Ratings matrix is denoted by R, and it is an m × n matrix
 containing m users (rows) and n movies (columns). The (i, j) 
 entry of the matrix is the rating of user i for movie j and 
 is denoted by r_ij
 """
-
-import pdb
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import pickle
-
-from surprise import KNNBasic, AlgoBase
-from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
-from surprise.prediction_algorithms.baseline_only import BaselineOnly
-from surprise.model_selection import cross_validate
-from surprise.model_selection import KFold
-from surprise.model_selection import train_test_split
-from surprise import Dataset
-from surprise import Reader
-from surprise import KNNWithMeans
-from surprise import accuracy
-
-from sklearn.metrics import roc_curve, auc
-
-PLOT_RESULT = True
-USE_PICKLED_RESULTS = False
-
 df = pd.read_csv("./ml-latest-small/ratings.csv")
+reader = Reader(rating_scale=(0.5,5))
+data = Dataset.load_from_df(df[['userId','movieId','rating']], reader)
+
 movies = df['movieId'].unique()
 users = df['userId'].unique()
 
@@ -127,10 +132,6 @@ if PLOT_RESULT:
 """
 Question 10:
 """
-# Load the data
-reader = Reader(rating_scale=(0.5,5))
-data = Dataset.load_from_df(df[['userId','movieId','rating']], reader)
-
 # Initialize kNNWithMeans with sim options
 sim_options = {
     'name': 'pearson',
@@ -213,7 +214,6 @@ else:
     algo = KNNWithMeans(k=k, sim_options=sim_options)
     for counter, [trainset, testset] in enumerate(kf.split(data)):
       print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
-      pdb.set_trace()
       # Train algorithm with 9 unmodified trainsets
       algo.fit(trainset)
     
@@ -364,36 +364,73 @@ if PLOT_RESULT == True:
   plt.legend(loc="lower right")
   plt.show(0)
 
+
 """
 Question 17
 """
-#avg_rmse = []
-#avg_mae = []
-#
-#for k in ks:
-#  algo = NMF(n_factors=2)
-#  result = cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=10)
-#  avg_rmse.append(result['test_rmse'].mean())
-#  avg_mae.append(result['test_mae'].mean())
+kf = KFold(n_splits=10)
+rmse, mae = 0, 0
+kf_rmse, kf_mae = [], []
+
+k_values = range(2,101,2)
+for k in k_values:
+  algo = NMF(n_factors=k)
+  for trainset, testset in kf.split(data):
+    algo.fit(trainset)
+    pred = algo.test(testset)
+    rmse += accuracy.rmse(pred)
+    mae += accuracy.mae(pred)
+  kf_rmse.append(rmse / kf.n_splits)
+  kf_mase.append(mae / kf.n_splits)
+
+if True:
+  plt.figure()
+  plt.plot(k_values, kf_rmse, '-x')
+  plt.title('Average RMSE over $k$ with 10-fold cross validation')
+  plt.xlabel('n_factors')
+  plt.ylabel('Average RMSE')
+
+  plt.figure()
+  plt.plot(k_values, kf_mae, '-x')
+  plt.title('Average MAE over $k$ with 10-fold cross validation')
+  plt.xlabel('n_factors')
+  plt.ylabel('Average MAE')
 
 """
 Question 24
 """
-#avg_rmse = []
-#avg_mae = []
-#
-#for k in ks:
-#  algo = SVD(n_factors=2)
-#  result = cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=10)
-#  avg_rmse.append(result['test_rmse'].mean())
-#  avg_mae.append(result['test_mae'].mean())
+rmse, mae = 0, 0
+kf_rmse, kf_mae = [], []
+
+k_values = range(2,101,2)
+for k in k_values:
+  algo = SVD(n_factors=k)
+  for trainset, testset in kf.split(data):
+    algo.fit(trainset)
+    pred = algo.test(testset)
+    rmse += accuracy.rmse(pred)
+    mae += accuracy.mae(pred)
+  kf_rmse.append(rmse / kf.n_splits)
+  kf_mase.append(mae / kf.n_splits)
+
+if True:
+  plt.figure()
+  plt.plot(k_values, kf_rmse, '-x')
+  plt.title('Average RMSE over $k$ with 10-fold cross validation')
+  plt.xlabel('n_factors')
+  plt.ylabel('Average RMSE')
+
+  plt.figure()
+  plt.plot(k_values, kf_mae, '-x')
+  plt.title('Average MAE over $k$ with 10-fold cross validation')
+  plt.xlabel('n_factors')
+  plt.ylabel('Average MAE')
 
 """
 Question 30: Naive Collaborative Filtering
 
 rij_hat = mean(u_j)
 """
-
 class NaiveCollabFilter(AlgoBase):
   def __init__(self):
     AlgoBase.__init__(self)
@@ -415,64 +452,42 @@ class NaiveCollabFilter(AlgoBase):
     return self._m_uid[u][0] if u in self._m_uid else 0
 
 algo = NaiveCollabFilter()
-result = cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=10)
+algo.fit(data.build_full_trainset())
+
+kf = KFold(n_splits=10)
+kf_rmse = []
+for _, testset in kf.split(data):
+  pred = algo.test(testset)
+  kf_rmse.append(accuracy.rmse(pred, verbose=True))
+print('Naive Collab Fillter RMSE for 10 folds CV: ', np.mean(kf_rmse))
 
 """
 Question 31: 
 """
-k_rmse = 0
-rmse_pop = []
-
-algo = NaiveCollabFilter()
-for counter, [trainset, testset] in enumerate(kf.split(data)):
-  algo.fit(trainset)
+kf_rmse = []
+for _, testset in kf.split(data):
   trimmed_testset = [x for x in testset if x[1] in pop_movies]
-
-  predictions = algo.test(trimmed_testset)
-  k_rmse += accuracy.rmse(predictions, verbose=True)
-
-#Compute mean of all rsme values for each k
-print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
-rmse_pop.append(k_rmse / (counter+1))
-
-print('RMSE values:')
-print(rmse_pop)
+  pred = algo.test(trimmed_testset)
+  kf_rmse.append(accuracy.rmse(pred, verbose=True))
+print('Naive Collab Fillter RMSE for 10 folds CV (popular testset): ', np.mean(kf_rmse))
 
 """
 Question 32: 
 """
-k_rmse = 0
-rmse_pop = []
-algo = NaiveCollabFilter()
-for counter, [trainset, testset] in enumerate(kf.split(data)):
-  algo.fit(trainset)
+kf_rmse = []
+for _, testset in kf.split(data):
   trimmed_testset = [x for x in testset if x[1] not in pop_movies]
-
-  predictions = algo.test(trimmed_testset)
-  k_rmse += accuracy.rmse(predictions, verbose=True)
-
-#Compute mean of all rsme values for each k
-print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
-rmse_pop.append(k_rmse / (counter+1))
-
-print('RMSE values:')
-print(rmse_pop)
+  pred = algo.test(trimmed_testset)
+  kf_rmse.append(accuracy.rmse(pred, verbose=True))
+print('Naive Collab Fillter RMSE for 10 folds CV (not popular testset): ', np.mean(kf_rmse))
 
 """
 Question 33: 
 """
-k_rmse = 0
-rmse_pop = []
-algo = NaiveCollabFilter()
-for counter, [trainset, testset] in enumerate(kf.split(data)):
-  algo.fit(trainset)
+kf_rmse = []
+for _, testset in kf.split(data):
   trimmed_testset = [x for x in testset if x[1] in high_var_movies]
-  predictions = algo.test(trimmed_testset)
-  k_rmse += accuracy.rmse(predictions, verbose=True)
+  pred = algo.test(trimmed_testset)
+  kf_rmse.append(accuracy.rmse(pred, verbose=True))
+print('Naive Collab Fillter RMSE for 10 folds CV (high var testset): ', np.mean(kf_rmse))
 
-#Compute mean of all rsme values for each k
-print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
-rmse_pop.append(k_rmse / (counter+1))
-
-print('RMSE values:')
-print(rmse_pop)
