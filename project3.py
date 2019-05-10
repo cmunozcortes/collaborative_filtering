@@ -397,6 +397,206 @@ if True:
   plt.ylabel('Average MAE')
 
 """
+Question 18
+"""
+
+movieDat = pd.read_csv("./ml-latest-small/movies.csv")
+
+indivGenre = []
+
+# write individual genres into a new array
+for g in movieDat['genres']:
+    for i in g.split('|'):
+        indivGenre.append(i)
+
+# list unique individual genres
+np.unique(indivGenre)
+
+"""
+Question 19: NNMF on Popular Movies
+"""
+# Using cross-validation iterators
+kf = KFold(n_splits=10)
+k_rmse = 0
+rmse_pop = []
+
+# Iterate over all k values and calculate RMSE for each
+for k in k_values:
+  algo = NMF(n_factors=k)
+  for counter, [trainset, testset] in enumerate(kf.split(data)):
+    print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
+    
+    # Train algorithm with 9 unmodified trainsets
+    algo.fit(trainset)
+    
+    # Test with trimmed test set
+    trimmed_testset = [x for x in testset if x[1] in pop_movie_df['movieId']]
+    predictions = algo.test(trimmed_testset)
+    
+    # Compute and print Root Mean Squared Error (RMSE) for each fold
+    k_rmse += accuracy.rmse(predictions, verbose=True)
+  
+  #Compute mean of all rmse values for each k
+  print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+  rmse_pop.append(k_rmse / (counter+1))
+  k_rmse = 0
+
+print('RMSE values:')
+print(rmse_pop)
+
+# Plot RMSE versus k
+plt.plot(k_values, rmse_pop, '-x')
+plt.title('Average RMSE over $k$ with 10-fold cross validation')
+plt.xlabel('$k$ Nearest Neighbors')
+plt.ylabel('Average RMSE')
+
+"""
+Question 20: NNMF on Unpopular Movies
+"""
+# Train/test using cross-validation iterators
+kf = KFold(n_splits=10)
+k_rmse = 0
+
+rmse_unpop = []
+
+for k in k_values:
+    algo = NMF(n_factors=k, biased=False)
+    
+    for counter, [trainset, testset] in enumerate(kf.split(data)):
+      print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
+    
+      # Train algorithm with 9 unmodified trainset
+      algo.fit(trainset)
+    
+      # Test with unpopular movie trimmed test set
+      trimmed_testset = [x for x in testset if x[1] not in pop_movies]
+      predictions = algo.test(trimmed_testset)
+    
+      # Compute and print Root Mean Squared Error (RMSE) for each fold
+      k_rmse += accuracy.rmse(predictions, verbose=True)
+  
+    #Compute mean of all rsme values for each k
+    print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+    rmse_unpop.append(k_rmse / (counter+1))
+    k_rmse = 0  
+
+
+# Plot RMSE versus k
+plt.plot(k_values, rmse_unpop, '-x')
+plt.title('Unpopular Test Set: Average RMSE over $k$ with 10-fold cross validation')
+plt.xlabel('$k$ Nearest Neighbors')
+plt.ylabel('Average RMSE')
+
+"""
+Question 21: NNMF on High Variance Movies
+"""
+# Empty list to store rmse for each k
+rmse_high_var = []
+
+# Using cross-validation iterators
+kf = KFold(n_splits=10)
+k_rmse = 0
+
+for k in k_values:
+    algo = NMF(n_factors=k, biased=False)
+    for counter, [trainset, testset] in enumerate(kf.split(data)):
+      print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
+    
+      # Train algorithm with 9 unmodified trainset
+      algo.fit(trainset)
+    
+      # Test with trimmed test set
+      trimmed_testset = [x for x in testset if x[1] in high_var_movies]
+      predictions = algo.test(trimmed_testset)
+    
+      # Compute and print Root Mean Squared Error (RMSE) for each fold
+      k_rmse += accuracy.rmse(predictions, verbose=True)
+  
+    # Compute mean of all rsme values for each k
+    print('Mean RMSE for 10 folds: ', k_rmse/(counter+1))
+    rmse_high_var.append(k_rmse / (counter+1))
+    k_rmse = 0  
+
+
+# Plot RMSE versus k
+plt.plot(k_values, rmse_high_var, '-x')
+plt.title('High Variance: Average RMSE over $k$ with 10-fold cross validation')
+plt.xlabel('$k$ Nearest Neighbors')
+plt.ylabel('Average RMSE')
+
+"""
+Question 22: NNMF ROC Plots
+"""
+def plotROC(fpr, tpr, roc_auc, threshold):
+    plt.figure()
+    lw = 2
+    plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic: Threshold = %s' %threshold)
+    plt.legend(loc="lower right")
+    plt.show()
+
+k = 20  # best k value found in question 18
+threshold_values = [2.5, 3, 3.5, 4]
+
+for threshold in threshold_values:
+  train_set, test_set = train_test_split(data, test_size = 0.1)
+  algo = NMF(n_factors=k, biased=False)
+  algo.fit(train_set)
+  predictions = algo.test(test_set)
+  
+  # r_ui is the 'true' rating
+  y_true = [0 if prediction.r_ui < threshold else 1
+                 for prediction in predictions]
+  # est is the estimated rating
+  y_score = [prediction.est for prediction in predictions]
+  fpr, tpr, thresholds = roc_curve(y_true=y_true, y_score=y_score)
+  roc_auc = auc(fpr, tpr)
+
+  plotROC(fpr, tpr, roc_auc, threshold)
+
+"""
+Question 23: Movie-Latent Factor Interaction
+"""
+reader = Reader(rating_scale=(0.5,5))
+data = Dataset.load_from_df(df[['userId','movieId','rating']], reader)
+data = data.build_full_trainset()
+
+movieDat = pd.read_csv('ml-latest-small/movies.csv')
+
+nmf = NMF(n_factors=20, biased=False)
+nmf.fit(data)
+
+movies = df['movieId'].unique()  # identify unique movie IDs from the ratings CSV (9724, already sorted)
+V = nmf.qi
+
+# get top 10 movie genres for the first 20 columns of the V matrix
+for i in range(20):
+    Vcol = V[:,i]
+    
+    # convert column of V into a list for processing
+    VcolOrig = []
+    VcolSort = []
+    for j in range(len(Vcol)):
+        VcolOrig.append(Vcol[j]) # original array for looking up movie index
+        VcolSort.append(Vcol[j]) # sorted array for getting top movies
+    
+    # sort Vcolumn list in descending order
+    VcolSort.sort(reverse=True)
+    
+    print('\nIn the %i column, the top 10 movie genres are:' %(i+1))
+    
+    for k in range(10):
+        movIndex = VcolOrig.index(VcolSort[k])
+        movID = movies[movIndex]
+        genre = movieDat.loc[movieDat['movieId']==movID]['genres'].values
+        print(' %i) ' %(k+1), genre)
+
+"""
 Question 24
 """
 rmse, mae = 0, 0
