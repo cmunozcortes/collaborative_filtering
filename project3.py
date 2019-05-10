@@ -25,7 +25,6 @@ from sklearn.metrics import roc_curve, auc
 Constants
 """
 PLOT_RESULT = False 
-USE_PICKLED_RESULTS = False
 
 """
 Loading data, computing rating matrix R
@@ -141,6 +140,7 @@ sim_options = {
 # Run k-NN with k=2 to k=100 in increments of 2
 k_values = range(2,101,2)
 results = []
+
 if USE_PICKLED_RESULTS == True:
   with open('knn.pickle', 'rb') as handle:
     results = pickle.load(handle)
@@ -176,7 +176,7 @@ if PLOT_RESULT:
   plt.title('Mean MAE for k-NN with Cross Validation')
   plt.ylabel('Mean MAE')
   plt.xlabel('Number of $k$ neighbors')
-  plt.show(0)
+  plt.show()
 
 """
 Question 12: k-NN on popular movies
@@ -207,13 +207,14 @@ rmse_pop = []
 
 if USE_PICKLED_RESULTS == True:
   with open('knn_pop.pickle', 'rb') as handle:
-    results = pickle.load(handle)
+    rmse_pop = pickle.load(handle)
 else:
   # Iterate over all k values and calculate RMSE for each
   for k in k_values:
     algo = KNNWithMeans(k=k, sim_options=sim_options)
     for counter, [trainset, testset] in enumerate(kf.split(data)):
       print('\nk = {0:d}, fold = {1:d}'.format(k, counter+1))
+      
       # Train algorithm with 9 unmodified trainsets
       algo.fit(trainset)
     
@@ -230,7 +231,7 @@ else:
     k_rmse = 0
   
   # Pickle results
-  with open('knn-unpop.pickle', 'wb') as handle:
+  with open('knn_pop.pickle', 'wb') as handle:
     pickle.dump(rmse_pop, handle)
 
 print('RMSE values:')
@@ -241,6 +242,7 @@ plt.plot(k_values, rmse_pop, '-x')
 plt.title('Average RMSE over $k$ with 10-fold cross validation')
 plt.xlabel('$k$ Nearest Neighbors')
 plt.ylabel('Average RMSE')
+plt.show()
 
 """
 Question 13: Unpopular movie trimmed set
@@ -248,7 +250,7 @@ Question 13: Unpopular movie trimmed set
 rmse_unpop = []
 if USE_PICKLED_RESULTS == True:
   with open('knn_unpop.pickle', 'rb') as handle:
-    results = pickle.load(handle)
+    rmse_unpop = pickle.load(handle)
 else: 
   for k in k_values:
     algo = KNNWithMeans(k=k, sim_options=sim_options)
@@ -272,13 +274,14 @@ else:
 
   # Pickle results
   with open('knn_unpop.pickle', 'wb') as handle:
-    pickle.dump(rmse_pop, handle)
+    pickle.dump(rmse_unpop, handle)
 
 # Plot RMSE versus k
 plt.plot(k_values, rmse_unpop, '-x')
 plt.title('Average RMSE over $k$ with 10-fold cross validation')
 plt.xlabel('$k$ Nearest Neighbors')
 plt.ylabel('Average RMSE')
+plt.show()
 
 """
 Question 14: Trimmed test set - movies with more than 5 ratings and variance higher
@@ -295,10 +298,9 @@ rmse_high_var = []
 kf = KFold(n_splits=10)
 k_rmse = 0
 
-
 if USE_PICKLED_RESULTS == True:
   with open('knn_var.pickle', 'rb') as handle:
-    results = pickle.load(handle)
+    rmse_high_var = pickle.load(handle)
 else:
   for k in k_values:
     algo = KNNWithMeans(k=k, sim_options=sim_options)
@@ -322,19 +324,21 @@ else:
   
   # Pickle results
   with open('knn_var.pickle', 'wb') as handle:
-    pickle.dump(rmse_pop, handle)
+    pickle.dump(rmse_high_var, handle)
 
 # Plot RMSE versus k
 plt.plot(k_values, rmse_high_var, '-x')
 plt.title('Average RMSE over $k$ with 10-fold cross validation')
 plt.xlabel('$k$ Nearest Neighbors')
 plt.ylabel('Average RMSE')
+plt.show()
 
 """
 Question 15:
 """
 k = 20  # best k value found in question 10
 threshold_values = [2.5, 3, 3.5, 4]
+roc_results = []
 
 for threshold in threshold_values:
   train_set, test_set = train_test_split(data, test_size = 0.1)
@@ -347,22 +351,28 @@ for threshold in threshold_values:
                  for prediction in predictions]
   # est is the estimated rating
   y_score = [prediction.est for prediction in predictions]
-  fpr, tpr, threholds = roc_curve(y_true=y_true, y_score=y_score)
+  fpr, tpr, thresholds = roc_curve(y_true=y_true, y_score=y_score)
   roc_auc = auc(fpr, tpr)
+  roc_results.append((fpr, tpr, roc_auc, threshold))
 
 # Plot ROC and include area under curve
 if PLOT_RESULT == True:
-  plt.figure()
+  plt.figure(figsize=(15,10))
   lw = 2
-  plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
-  plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-  plt.xlim([0.0, 1.0])
-  plt.ylim([0.0, 1.05])
-  plt.xlabel('False Positive Rate')
-  plt.ylabel('True Positive Rate')
-  plt.title('Receiver operating characteristic example')
-  plt.legend(loc="lower right")
-  plt.show(0)
+  for i, result in enumerate(roc_results):
+    plt.subplot(2,2,i+1)
+    plt.plot(result[0], result[1], color='darkorange', lw=lw, 
+             label='ROC curve (area = %0.2f)' % result[2])
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve for Threshold = {:.1f}'.format(result[3]))
+    plt.legend(loc="lower right")
+  plt.tight_layout()
+  plt.show()
+
 
 
 """
@@ -690,4 +700,3 @@ for _, testset in kf.split(data):
   pred = algo.test(trimmed_testset)
   kf_rmse.append(accuracy.rmse(pred, verbose=True))
 print('Naive Collab Fillter RMSE for 10 folds CV (high var testset): ', np.mean(kf_rmse))
-
