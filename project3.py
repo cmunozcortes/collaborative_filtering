@@ -24,7 +24,8 @@ from sklearn.metrics import roc_curve, auc
 """
 Constants
 """
-PLOT_RESULT = False 
+PLOT_RESULT = False
+USE_PICKLED_RESULTS = True 
 
 """
 Loading data, computing rating matrix R
