@@ -459,7 +459,7 @@ for k in k_values:
     algo.fit(trainset)
     
     # Test with trimmed test set
-    trimmed_testset = [x for x in testset if x[1] in pop_movies
+    trimmed_testset = [x for x in testset if x[1] in pop_movies]
     predictions = algo.test(trimmed_testset)
     
     # Compute and print Root Mean Squared Error (RMSE) for each fold
