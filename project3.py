@@ -368,7 +368,7 @@ for threshold in threshold_values:
   # r_ui is the 'true' rating
   y_true = [0 if prediction.r_ui < threshold else 1
                  for prediction in predictions]
-  # est is the estimated rating
+  # 'est' is the estimated rating
   y_score = [prediction.est for prediction in predictions]
   fpr, tpr, thresholds = roc_curve(y_true=y_true, y_score=y_score)
   roc_auc = auc(fpr, tpr)
@@ -410,7 +410,7 @@ for k in k_values:
     rmse += accuracy.rmse(pred)
     mae += accuracy.mae(pred)
   kf_rmse.append(rmse / kf.n_splits)
-  kf_mase.append(mae / kf.n_splits)
+  kf_rmse.append(mae / kf.n_splits)
 
 if True:
   plt.figure()
@@ -459,7 +459,7 @@ for k in k_values:
     algo.fit(trainset)
     
     # Test with trimmed test set
-    trimmed_testset = [x for x in testset if x[1] in pop_movie_df['movieId']]
+    trimmed_testset = [x for x in testset if x[1] in pop_movies
     predictions = algo.test(trimmed_testset)
     
     # Compute and print Root Mean Squared Error (RMSE) for each fold
@@ -640,7 +640,7 @@ for k in k_values:
     rmse += accuracy.rmse(pred)
     mae += accuracy.mae(pred)
   kf_rmse.append(rmse / kf.n_splits)
-  kf_mase.append(mae / kf.n_splits)
+  kf_rmse.append(mae / kf.n_splits)
 
 if True:
   plt.figure()
@@ -762,8 +762,46 @@ plt.legend()
 plt.show(0)
 
 """
-Question 36
+Question 36: Evaluating ranking using precision-recall curve
+
+Plot average precision (Y-axis) against t (X-axis) for the rank-
+ing obtained using k-NN collaborative lter predictions. Also, plot the average
+15 recall (Y-axis) against t (X-axis) and average precision (Y-axis) against average
+recall (X-axis). Use the k found in question 11 and sweep t from 1 to 25 in step
+sizes of 1. For each plot, briefly comment on the shape of the plot.
 """
+# TODO: implement this function according to section 8.1 and 8.2 in project 
+# handout:
+# 1. Sort prediction list in descending order
+# 2. Select the first t-items from the sorted list to recommend to the user
+# 3. In the set of 't' recommended items to the user, drop the items for which we 
+#    don't have a ground truth rating
+# 4. Calculate precision and recall according to eqns (12) and (13)
+def evaluate_ranking(predictions):
+  # Empty dictionaries to store precision and recall for each userId
+  precision = {}
+  recall = {}
+  return precision, recall
+
+# Recommended movies set sizes
+t_size = range(1,26)
+
+# Empty lists to store precision and recall for each 't'
+precision = []
+recall = []
+
+# For each t size follow pseudo-code provided in 
+# section 8.1 of project handout
+for t in t_size:
+  for trainset, testset in kf.split(data):
+    # Using knn algo defined above in Q34
+    knn.fit(trainset)
+    pred = knn.test(testset)
+
+    # Rank predictions and evaluate
+    kf_precision, kf_recall = evaluate_ranking(pred)
+    precision.append(kf_precision)
+    recall.append(kf_recall)
 
 """
 Question 37
