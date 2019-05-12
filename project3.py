@@ -24,7 +24,7 @@ from sklearn.metrics import roc_curve, auc
 """
 Constants
 """
-PLOT_RESULT = False
+PLOT_RESULT = True
 USE_PICKLED_RESULTS = True 
 
 """
@@ -161,6 +161,10 @@ for counter, result in enumerate(results):
   mean_scores[counter,0] = np.mean(result['test_rmse'])
   mean_scores[counter,1] = np.mean(result['test_mae'])
 
+# Print steady-state value for RMSE and MAE
+print('\nRMSE steady-state value: {:.3f}'.format(mean_scores[20,0]))
+print('MAE steady-state value: {:.3f}'.format(mean_scores[20,1]))
+
 # Plot mean scores
 if PLOT_RESULT:
   # Plot RMSE
@@ -177,6 +181,7 @@ if PLOT_RESULT:
   plt.title('Mean MAE for k-NN with Cross Validation')
   plt.ylabel('Mean MAE')
   plt.xlabel('Number of $k$ neighbors')
+  plt.tight_layout()
   plt.show()
 
 """
@@ -235,15 +240,18 @@ else:
   with open('knn_pop.pickle', 'wb') as handle:
     pickle.dump(rmse_pop, handle)
 
-print('RMSE values:')
-print(rmse_pop)
+# Print minimum RMSE
+print('\nPopular Movies:')
+print('Minimum average RMSE: {:.3f}'.format(np.min(rmse_pop)))
 
-# Plot RMSE versus k
-plt.plot(k_values, rmse_pop, '-x')
-plt.title('Average RMSE over $k$ with 10-fold cross validation')
-plt.xlabel('$k$ Nearest Neighbors')
-plt.ylabel('Average RMSE')
-plt.show()
+
+if PLOT_RESULT:
+  # Plot RMSE versus k
+  plt.plot(k_values, rmse_pop, '-x')
+  plt.title('Average RMSE over $k$ with 10-fold cross validation')
+  plt.xlabel('$k$ Nearest Neighbors')
+  plt.ylabel('Average RMSE')
+  plt.show()
 
 """
 Question 13: Unpopular movie trimmed set
@@ -277,12 +285,17 @@ else:
   with open('knn_unpop.pickle', 'wb') as handle:
     pickle.dump(rmse_unpop, handle)
 
-# Plot RMSE versus k
-plt.plot(k_values, rmse_unpop, '-x')
-plt.title('Average RMSE over $k$ with 10-fold cross validation')
-plt.xlabel('$k$ Nearest Neighbors')
-plt.ylabel('Average RMSE')
-plt.show()
+# Print minimum RMSE
+print('\nUnpopular Movies:')
+print('Minimum average RMSE: {:.3f}'.format(np.min(rmse_unpop)))
+
+if PLOT_RESULT:
+  # Plot RMSE versus k
+  plt.plot(k_values, rmse_unpop, '-x')
+  plt.title('Average RMSE over $k$ with 10-fold cross validation')
+  plt.xlabel('$k$ Nearest Neighbors')
+  plt.ylabel('Average RMSE')
+  plt.show()
 
 """
 Question 14: Trimmed test set - movies with more than 5 ratings and variance higher
@@ -327,12 +340,17 @@ else:
   with open('knn_var.pickle', 'wb') as handle:
     pickle.dump(rmse_high_var, handle)
 
-# Plot RMSE versus k
-plt.plot(k_values, rmse_high_var, '-x')
-plt.title('Average RMSE over $k$ with 10-fold cross validation')
-plt.xlabel('$k$ Nearest Neighbors')
-plt.ylabel('Average RMSE')
-plt.show()
+# Print minimum RMSE
+print('\nHigh-Variance Movies:')
+print('Minimum average RMSE: {:.3f}\n'.format(np.min(rmse_high_var)))
+
+if PLOT_RESULT:
+  # Plot RMSE versus k
+  plt.plot(k_values, rmse_high_var, '-x')
+  plt.title('Average RMSE over $k$ with 10-fold cross validation')
+  plt.xlabel('$k$ Nearest Neighbors')
+  plt.ylabel('Average RMSE')
+  plt.show()
 
 """
 Question 15:
@@ -369,8 +387,8 @@ if PLOT_RESULT == True:
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC Curve for Threshold = {:.1f}'.format(result[3]))
-    plt.legend(loc="lower right")
+    plt.title('ROC Curve for Threshold = {:.1f}'.format(result[3]), fontsize='xx-large')
+    plt.legend(loc="lower right", fontsize='xx-large')
   plt.tight_layout()
   plt.show()
 
