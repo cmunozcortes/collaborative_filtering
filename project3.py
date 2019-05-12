@@ -719,3 +719,56 @@ for _, testset in kf.split(data):
   pred = algo.test(trimmed_testset)
   kf_rmse.append(accuracy.rmse(pred, verbose=True))
 print('Naive Collab Fillter RMSE for 10 folds CV (high var testset): ', np.mean(kf_rmse))
+
+"""
+Question 34
+Plot the ROC curves (threshold = 3) for the k-NN, NNMF, and
+MF with bias based collaborative filters in the same figure. Use the figure to
+compare the performance of the filters in predicting the ratings of the movies.
+
+k-NN : k = 20
+NNMF : k = 18 or 20
+MF   : k = 20 
+"""
+trainset, testset = train_test_split(data, test_size = 0.1)
+sim_options = {
+  'name': 'pearson',
+  'user_based': True,
+}
+knn = KNNWithMeans(k=20, sim_options=sim_options)
+nmf = NMF(n_factors=20, biased=False)
+svd = SVD(n_factors=20)
+
+plt.figure()
+threshold = 3
+algos = (('kNN', knn), ('NMMF', nmf), ('MF', svd))
+for name, algo in algos:
+  algo.fit(trainset)
+  pred = algo.test(testset)
+  y_true  = [0 if p.r_ui < threshold else 1 for p in pred]
+  y_score = [p.est for p in pred]
+  fpr, tpr, thresholds = roc_curve(y_true=y_true, y_score=y_score)
+  roc_auc = auc(fpr, tpr)
+  label =  name + ' ROC curve (area = %0.2f)' % roc_auc
+  plt.plot(fpr, tpr, label=label)
+
+plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve for Threshold = {:.1f}'.format(threshold))
+plt.legend()
+plt.show(0)
+
+"""
+Question 36
+"""
+
+"""
+Question 37
+"""
+
+"""
+Question 38
+"""
