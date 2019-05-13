@@ -8,6 +8,7 @@ http://files.grouplens.org/datasets/movielens/ml-latest-small.zip
 """
 import pdb
 import pickle
+import bisect # use to keep a sorted list
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,9 +18,8 @@ from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
 from surprise.prediction_algorithms.baseline_only import BaselineOnly
 from surprise.model_selection import cross_validate, KFold, train_test_split
 from surprise import Dataset, Reader, KNNWithMeans, accuracy
-
 from sklearn.metrics import roc_curve, auc
-
+from collections import defaultdict
 
 """
 Constants
@@ -368,7 +368,7 @@ for threshold in threshold_values:
   # r_ui is the 'true' rating
   y_true = [0 if prediction.r_ui < threshold else 1
                  for prediction in predictions]
-  # 'est' is the estimated rating
+  # est is the estimated rating
   y_score = [prediction.est for prediction in predictions]
   fpr, tpr, thresholds = roc_curve(y_true=y_true, y_score=y_score)
   roc_auc = auc(fpr, tpr)
@@ -410,7 +410,7 @@ for k in k_values:
     rmse += accuracy.rmse(pred)
     mae += accuracy.mae(pred)
   kf_rmse.append(rmse / kf.n_splits)
-  kf_rmse.append(mae / kf.n_splits)
+  kf_mase.append(mae / kf.n_splits)
 
 if True:
   plt.figure()
@@ -459,7 +459,7 @@ for k in k_values:
     algo.fit(trainset)
     
     # Test with trimmed test set
-    trimmed_testset = [x for x in testset if x[1] in pop_movies]
+    trimmed_testset = [x for x in testset if x[1] in pop_movie]
     predictions = algo.test(trimmed_testset)
     
     # Compute and print Root Mean Squared Error (RMSE) for each fold
@@ -640,7 +640,7 @@ for k in k_values:
     rmse += accuracy.rmse(pred)
     mae += accuracy.mae(pred)
   kf_rmse.append(rmse / kf.n_splits)
-  kf_rmse.append(mae / kf.n_splits)
+  kf_mase.append(mae / kf.n_splits)
 
 if True:
   plt.figure()
@@ -733,7 +733,7 @@ MF   : k = 20
 trainset, testset = train_test_split(data, test_size = 0.1)
 sim_options = {
   'name': 'pearson',
-  'user_based': True,
+  'user_based': True
 }
 knn = KNNWithMeans(k=20, sim_options=sim_options)
 nmf = NMF(n_factors=20, biased=False)
@@ -762,51 +762,147 @@ plt.legend()
 plt.show(0)
 
 """
-Question 36: Evaluating ranking using precision-recall curve
-
-Plot average precision (Y-axis) against t (X-axis) for the rank-
-ing obtained using k-NN collaborative lter predictions. Also, plot the average
-15 recall (Y-axis) against t (X-axis) and average precision (Y-axis) against average
+Question 36: 
+Plot average precision (Y-axis) against t (X-axis) for the ranking obtained using 
+k-NN collaborative filter predictions. Also, plot the average recall (Y-axis) 
+against t (X-axis) and average precision (Y-axis) against average
 recall (X-axis). Use the k found in question 11 and sweep t from 1 to 25 in step
 sizes of 1. For each plot, briefly comment on the shape of the plot.
 """
-# TODO: implement this function according to section 8.1 and 8.2 in project 
-# handout:
-# 1. Sort prediction list in descending order
-# 2. Select the first t-items from the sorted list to recommend to the user
-# 3. In the set of 't' recommended items to the user, drop the items for which we 
-#    don't have a ground truth rating
-# 4. Calculate precision and recall according to eqns (12) and (13)
-def evaluate_ranking(predictions):
-  # Empty dictionaries to store precision and recall for each userId
-  precision = {}
-  recall = {}
-  return precision, recall
+def calc_precision_recall(pred, t, threshold=3.0):
+  user_ratings = defaultdict(list)
+  for uid,_,r_ui, est, _ in pred:
+    bisect.insort(user_ratings[uid], (est, r_ui))
 
-# Recommended movies set sizes
-t_size = range(1,26)
+  precision, recall  = dict(), dict()
+  for uid, ratings in user_ratings.items():
+    if len(ratings) < t:
+      continue
+    # |G| 
+    G = sum((r_ui >= threshold) for (_, r_ui) in ratings)
+    if int(G) == 0:
+      continue
+    StnG = sum(((est >= threshold) and (est >= threshold)) for (est, r_ui) in ratings[-t:])
+    precision[uid], recall[uid] = StnG / t, StnG / G
+  return (precision, recall)
 
-# Empty lists to store precision and recall for each 't'
-precision = []
-recall = []
 
-# For each t size follow pseudo-code provided in 
-# section 8.1 of project handout
-for t in t_size:
+kf = KFold(n_splits=10)
+ts = list(range(1,25+1))
+threshold = 3
+
+sim_options = {
+  'name': 'pearson',
+  'user_based': True
+}
+
+precision_t, recall_t = [], []
+for t in ts:
+  precision_sum, recall_sum = 0.0, 0.0
+  knn = KNNWithMeans(k=20, sim_options=sim_options)
   for trainset, testset in kf.split(data):
-    # Using knn algo defined above in Q34
     knn.fit(trainset)
     pred = knn.test(testset)
+    precision, recall = calc_precision_recall(pred, int(t), threshold)
+    precision_sum += np.mean(list(precision.values()))
+    recall_sum += np.mean(list(recall.values()))
+  precision_avg = precision_sum / kf.n_splits
+  recall_avg = recall_sum / kf.n_splits
+  print(f"kNN t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
+  precision_t.append(precision_avg)
+  recall_t.append(recall_avg)
 
-    # Rank predictions and evaluate
-    kf_precision, kf_recall = evaluate_ranking(pred)
-    precision.append(kf_precision)
-    recall.append(kf_recall)
+plt.figure()
+plt.subplot(2,1,1)
+plt.title("kNN: Avg Precision vs t with 10 fold CV")
+plt.ylabel("Avg Precision")
+plt.plot(ts, precision_t)
+
+plt.subplot(2,1,2)
+plt.title("kNN: Avg Recall vs t with 10 fold CV")
+plt.xlabel("t (recommend item set size)")
+plt.ylabel("Avg Recall")
+plt.plot(ts, recall_t)
+
+plt.figure()
+plt.title("kNN: Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(recall_t, precision_t)
+plt.show(0)
 
 """
 Question 37
 """
+precision_t, recall_t = [], []
+for t in ts:
+  precision_sum, recall_sum = 0.0, 0.0
+  nmf = NMF(n_factors=20, biased=False)
+  for trainset, testset in kf.split(data):
+    nmf.fit(trainset)
+    pred = nmf.test(testset)
+    precision, recall = calc_precision_recall(pred, int(t), threshold)
+    precision_sum += np.mean(list(precision.values()))
+    recall_sum += np.mean(list(recall.values()))
+  precision_avg = precision_sum / kf.n_splits
+  recall_avg = recall_sum / kf.n_splits
+  print(f"NMF t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
+  precision_t.append(precision_avg)
+  recall_t.append(recall_avg)
+
+plt.figure()
+plt.subplot(2,1,1)
+plt.title("NMF: Avg Precision vs t with 10 fold CV")
+plt.ylabel("Avg Precision")
+plt.plot(ts, precision_t)
+
+plt.subplot(2,1,2)
+plt.title("NMF: Avg Recall vs t with 10 fold CV")
+plt.xlabel("t (recommend item set size)")
+plt.ylabel("Avg Recall")
+plt.plot(ts, recall_t)
+
+plt.figure()
+plt.title("NMF: Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(recall_t, precision_t)
+plt.show(0)
 
 """
 Question 38
 """
+precision_t, recall_t = [], []
+for t in ts:
+  precision_sum, recall_sum = 0.0, 0.0
+  svd = SVD(n_factors=20)
+  for trainset, testset in kf.split(data):
+    svd.fit(trainset)
+    pred = svd.test(testset)
+    precision, recall = calc_precision_recall(pred, int(t), threshold)
+    precision_sum += np.mean(list(precision.values()))
+    recall_sum += np.mean(list(recall.values()))
+  precision_avg = precision_sum / kf.n_splits
+  recall_avg = recall_sum / kf.n_splits
+  print(f"MF t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
+  precision_t.append(precision_avg)
+  recall_t.append(recall_avg)
+
+plt.figure()
+plt.subplot(2,1,1)
+plt.title("MF: Avg Precision vs t with 10 fold CV")
+plt.ylabel("Avg Precision")
+plt.plot(ts, precision_t)
+
+plt.subplot(2,1,2)
+plt.title("MF: Avg Recall vs t with 10 fold CV")
+plt.xlabel("t (recommend item set size)")
+plt.ylabel("Avg Recall")
+plt.plot(ts, recall_t)
+
+plt.figure()
+plt.title("MF: Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(recall_t, precision_t)
+plt.show(0)
