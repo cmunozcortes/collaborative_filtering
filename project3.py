@@ -796,7 +796,7 @@ sim_options = {
   'user_based': True
 }
 
-precision_t, recall_t = [], []
+knn_prec, knn_recall = [], []
 for t in ts:
   precision_sum, recall_sum = 0.0, 0.0
   knn = KNNWithMeans(k=20, sim_options=sim_options)
@@ -809,32 +809,32 @@ for t in ts:
   precision_avg = precision_sum / kf.n_splits
   recall_avg = recall_sum / kf.n_splits
   print(f"kNN t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
-  precision_t.append(precision_avg)
-  recall_t.append(recall_avg)
+  knn_prec.append(precision_avg)
+  knn_recall.append(recall_avg)
 
 plt.figure()
 plt.subplot(2,1,1)
 plt.title("kNN: Avg Precision vs t with 10 fold CV")
 plt.ylabel("Avg Precision")
-plt.plot(ts, precision_t)
+plt.plot(ts, knn_prec)
 
 plt.subplot(2,1,2)
 plt.title("kNN: Avg Recall vs t with 10 fold CV")
 plt.xlabel("t (recommend item set size)")
 plt.ylabel("Avg Recall")
-plt.plot(ts, recall_t)
+plt.plot(ts, knn_recall)
 
 plt.figure()
 plt.title("kNN: Avg Precision vs Avg Recall with 10 fold CV")
 plt.xlabel("Avg Recall")
 plt.ylabel("Avg Precision")
-plt.plot(recall_t, precision_t)
+plt.plot(knn_recall, knn_prec)
 plt.show(0)
 
 """
 Question 37
 """
-precision_t, recall_t = [], []
+nmf_prec, nmf_recall = [], []
 for t in ts:
   precision_sum, recall_sum = 0.0, 0.0
   nmf = NMF(n_factors=20, biased=False)
@@ -847,32 +847,32 @@ for t in ts:
   precision_avg = precision_sum / kf.n_splits
   recall_avg = recall_sum / kf.n_splits
   print(f"NMF t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
-  precision_t.append(precision_avg)
-  recall_t.append(recall_avg)
+  nmf_prec.append(precision_avg)
+  nmf_recall.append(recall_avg)
 
 plt.figure()
 plt.subplot(2,1,1)
 plt.title("NMF: Avg Precision vs t with 10 fold CV")
 plt.ylabel("Avg Precision")
-plt.plot(ts, precision_t)
+plt.plot(ts, nmf_prec)
 
 plt.subplot(2,1,2)
 plt.title("NMF: Avg Recall vs t with 10 fold CV")
 plt.xlabel("t (recommend item set size)")
 plt.ylabel("Avg Recall")
-plt.plot(ts, recall_t)
+plt.plot(ts, nmf_recall)
 
 plt.figure()
 plt.title("NMF: Avg Precision vs Avg Recall with 10 fold CV")
 plt.xlabel("Avg Recall")
 plt.ylabel("Avg Precision")
-plt.plot(recall_t, precision_t)
+plt.plot(nmf_recall, nmf_prec)
 plt.show(0)
 
 """
 Question 38
 """
-precision_t, recall_t = [], []
+mf_prec, mf_recall = [], []
 for t in ts:
   precision_sum, recall_sum = 0.0, 0.0
   svd = SVD(n_factors=20)
@@ -885,24 +885,37 @@ for t in ts:
   precision_avg = precision_sum / kf.n_splits
   recall_avg = recall_sum / kf.n_splits
   print(f"MF t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
-  precision_t.append(precision_avg)
-  recall_t.append(recall_avg)
+  mf_prec.append(precision_avg)
+  mf_recall.append(recall_avg)
 
 plt.figure()
 plt.subplot(2,1,1)
 plt.title("MF: Avg Precision vs t with 10 fold CV")
 plt.ylabel("Avg Precision")
-plt.plot(ts, precision_t)
+plt.plot(ts, mf_prec)
 
 plt.subplot(2,1,2)
 plt.title("MF: Avg Recall vs t with 10 fold CV")
 plt.xlabel("t (recommend item set size)")
 plt.ylabel("Avg Recall")
-plt.plot(ts, recall_t)
+plt.plot(ts, mf_recall)
 
 plt.figure()
 plt.title("MF: Avg Precision vs Avg Recall with 10 fold CV")
 plt.xlabel("Avg Recall")
 plt.ylabel("Avg Precision")
-plt.plot(recall_t, precision_t)
+plt.plot(mf_recall, mf_prec)
+plt.show(0)
+
+"""
+Question 39
+"""
+plt.figure()
+plt.title("Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(knn_recall, knn_prec, label='kNN')
+plt.plot(nmf_recall, nmf_prec, label='NMF')
+plt.plot(mf_recall, mf_prec, label='MF')
+plt.legend()
 plt.show(0)
