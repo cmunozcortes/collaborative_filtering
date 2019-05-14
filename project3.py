@@ -9,6 +9,7 @@ http://files.grouplens.org/datasets/movielens/ml-latest-small.zip
 import os
 import pdb
 import pickle
+import bisect # use to keep a sorted list
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,14 +19,13 @@ from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
 from surprise.prediction_algorithms.baseline_only import BaselineOnly
 from surprise.model_selection import cross_validate, KFold, train_test_split
 from surprise import Dataset, Reader, KNNWithMeans, accuracy
-
 from sklearn.metrics import roc_curve, auc
-
+from collections import defaultdict
 
 """
 Constants
 """
-PLOT_RESULT = False
+PLOT_RESULT = True
 USE_PICKLED_RESULTS = True
 
 """
@@ -162,6 +162,10 @@ for counter, result in enumerate(results):
   mean_scores[counter,0] = np.mean(result['test_rmse'])
   mean_scores[counter,1] = np.mean(result['test_mae'])
 
+# Print steady-state value for RMSE and MAE
+print('\nRMSE steady-state value: {:.3f}'.format(mean_scores[20,0]))
+print('MAE steady-state value: {:.3f}'.format(mean_scores[20,1]))
+
 # Plot mean scores
 if PLOT_RESULT:
   # Plot RMSE
@@ -178,6 +182,7 @@ if PLOT_RESULT:
   plt.title('Mean MAE for k-NN with Cross Validation')
   plt.ylabel('Mean MAE')
   plt.xlabel('Number of $k$ neighbors')
+  plt.tight_layout()
   plt.show()
 
 """
@@ -236,8 +241,10 @@ else:
   with open('knn_pop.pickle', 'wb') as handle:
     pickle.dump(rmse_pop, handle)
 
-print('RMSE values:')
-print(rmse_pop)
+# Print minimum RMSE
+print('\nPopular Movies:')
+print('Minimum average RMSE: {:.3f}'.format(np.min(rmse_pop)))
+
 
 if PLOT_RESULT:
   # Plot RMSE versus k
@@ -278,6 +285,10 @@ else:
   # Pickle results
   with open('knn_unpop.pickle', 'wb') as handle:
     pickle.dump(rmse_unpop, handle)
+
+# Print minimum RMSE
+print('\nUnpopular Movies:')
+print('Minimum average RMSE: {:.3f}'.format(np.min(rmse_unpop)))
 
 if PLOT_RESULT:
   # Plot RMSE versus k
@@ -330,6 +341,10 @@ else:
   with open('knn_var.pickle', 'wb') as handle:
     pickle.dump(rmse_high_var, handle)
 
+# Print minimum RMSE
+print('\nHigh-Variance Movies:')
+print('Minimum average RMSE: {:.3f}\n'.format(np.min(rmse_high_var)))
+
 if PLOT_RESULT:
   # Plot RMSE versus k
   plt.plot(k_values, rmse_high_var, '-x')
@@ -361,7 +376,7 @@ for threshold in threshold_values:
   roc_results.append((fpr, tpr, roc_auc, threshold))
 
 # Plot ROC and include area under curve
-if PLOT_RESULT == True:
+if PLOT_RESULT:
   plt.figure(figsize=(15,10))
   lw = 2
   for i, result in enumerate(roc_results):
@@ -373,8 +388,8 @@ if PLOT_RESULT == True:
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC Curve for Threshold = {:.1f}'.format(result[3]))
-    plt.legend(loc="lower right")
+    plt.title('ROC Curve for Threshold = {:.1f}'.format(result[3]), fontsize='xx-large')
+    plt.legend(loc="lower right", fontsize='xx-large')
   plt.tight_layout()
   plt.show()
 
@@ -387,7 +402,7 @@ kf = KFold(n_splits=10)
 rmse, mae = 0, 0
 kf_rmse, kf_mae = [], []
 
-k_values = range(2,101,2)
+k_values = range(2,51,2)
 for k in k_values:
   algo = NMF(n_factors=k)
   for trainset, testset in kf.split(data):
@@ -461,11 +476,11 @@ print('RMSE values:')
 print(rmse_pop)
 
 if PLOT_RESULT:
-  # Plot RMSE versus k
-  plt.plot(k_values, rmse_pop, '-x')
-  plt.title('Average RMSE over $k$ with 10-fold cross validation')
-  plt.xlabel('$k$ Nearest Neighbors')
-  plt.ylabel('Average RMSE')
+    # Plot RMSE versus k
+    plt.plot(k_values, rmse_pop, '-x')
+    plt.title('Average RMSE over $k$ with 10-fold cross validation')
+    plt.xlabel('$k$ Nearest Neighbors')
+    plt.ylabel('Average RMSE')
 
 """
 Question 20: NNMF on Unpopular Movies
@@ -498,11 +513,11 @@ for k in k_values:
     k_rmse = 0
 
 if PLOT_RESULT:
-  # Plot RMSE versus k
-  plt.plot(k_values, rmse_unpop, '-x')
-  plt.title('Unpopular Test Set: Average RMSE over $k$ with 10-fold cross validation')
-  plt.xlabel('$k$ Nearest Neighbors')
-  plt.ylabel('Average RMSE')
+    # Plot RMSE versus k
+    plt.plot(k_values, rmse_unpop, '-x')
+    plt.title('Unpopular Test Set: Average RMSE over $k$ with 10-fold cross validation')
+    plt.xlabel('$k$ Nearest Neighbors')
+    plt.ylabel('Average RMSE')
 
 """
 Question 21: NNMF on High Variance Movies
@@ -535,11 +550,11 @@ for k in k_values:
     k_rmse = 0
 
 if PLOT_RESULT:
-  # Plot RMSE versus k
-  plt.plot(k_values, rmse_high_var, '-x')
-  plt.title('High Variance: Average RMSE over $k$ with 10-fold cross validation')
-  plt.xlabel('$k$ Nearest Neighbors')
-  plt.ylabel('Average RMSE')
+    # Plot RMSE versus k
+    plt.plot(k_values, rmse_high_var, '-x')
+    plt.title('High Variance: Average RMSE over $k$ with 10-fold cross validation')
+    plt.xlabel('$k$ Nearest Neighbors')
+    plt.ylabel('Average RMSE')
 
 """
 Question 22: NNMF ROC Plots
@@ -622,7 +637,7 @@ k_rmse, k_mae, k_pop_rmse, k_unpop_rmse, k_high_var_rmse = 0, 0, 0, 0, 0
 kf_rmse, kf_mae, rmse_pop, rmse_unpop, rmse_high_var = [], [], [], [], []
 k_values = range(2, 51, 2)
 
-if USE_PICKLED_RESULTS and os.path.isfile('mf_bias_rmse2.pickle') and os.path.isfile('mf_bias_high_var_rmse2.pickle'):
+if USE_PICKLED_RESULTS and os.path.isfile('mf_bias_rmse.pickle') and os.path.isfile('mf_bias_high_var_rmse.pickle'):
   with open('mf_bias_rmse.pickle', 'rb') as handle:
     kf_rmse = pickle.load(handle)
   with open('mf_bias_mae.pickle', 'rb') as handle:
@@ -663,15 +678,15 @@ else:
     k_rmse, k_mae, k_pop_rmse, k_unpop_rmse, k_high_var_rmse = 0, 0, 0, 0, 0
 
   # Pickle results
-  with open('mf_bias_rmse2.pickle', 'wb') as handle:
+  with open('mf_bias_rmse.pickle', 'wb') as handle:
     pickle.dump(kf_rmse, handle)
-  with open('mf_bias_mae2.pickle', 'wb') as handle:
+  with open('mf_bias_mae.pickle', 'wb') as handle:
     pickle.dump(kf_mae, handle)
-  with open('mf_bias_pop_rmse2.pickle', 'wb') as handle:
+  with open('mf_bias_pop_rmse.pickle', 'wb') as handle:
     pickle.dump(rmse_pop, handle)
-  with open('mf_bias_unpop_rmse2.pickle', 'wb') as handle:
+  with open('mf_bias_unpop_rmse.pickle', 'wb') as handle:
     pickle.dump(rmse_unpop, handle)
-  with open('mf_bias_high_var_rmse2.pickle', 'wb') as handle:
+  with open('mf_bias_high_var_rmse.pickle', 'wb') as handle:
     pickle.dump(rmse_high_var, handle)
 
 if PLOT_RESULT:
@@ -774,7 +789,7 @@ for _, testset in kf.split(data):
 print('Naive Collab Fillter RMSE for 10 folds CV: ', np.mean(kf_rmse))
 
 """
-Question 31:
+Question 31: 
 """
 kf_rmse = []
 for _, testset in kf.split(data):
@@ -784,7 +799,7 @@ for _, testset in kf.split(data):
 print('Naive Collab Fillter RMSE for 10 folds CV (popular testset): ', np.mean(kf_rmse))
 
 """
-Question 32:
+Question 32: 
 """
 kf_rmse = []
 for _, testset in kf.split(data):
@@ -794,7 +809,7 @@ for _, testset in kf.split(data):
 print('Naive Collab Fillter RMSE for 10 folds CV (not popular testset): ', np.mean(kf_rmse))
 
 """
-Question 33:
+Question 33: 
 """
 kf_rmse = []
 for _, testset in kf.split(data):
@@ -802,3 +817,203 @@ for _, testset in kf.split(data):
   pred = algo.test(trimmed_testset)
   kf_rmse.append(accuracy.rmse(pred, verbose=True))
 print('Naive Collab Fillter RMSE for 10 folds CV (high var testset): ', np.mean(kf_rmse))
+
+"""
+Question 34
+Plot the ROC curves (threshold = 3) for the k-NN, NNMF, and
+MF with bias based collaborative filters in the same figure. Use the figure to
+compare the performance of the filters in predicting the ratings of the movies.
+
+k-NN : k = 20
+NNMF : k = 18 or 20
+MF   : k = 20 
+"""
+trainset, testset = train_test_split(data, test_size = 0.1)
+sim_options = {
+  'name': 'pearson',
+  'user_based': True
+}
+knn = KNNWithMeans(k=20, sim_options=sim_options)
+nmf = NMF(n_factors=20, biased=False)
+svd = SVD(n_factors=20)
+
+plt.figure()
+threshold = 3
+algos = (('kNN', knn), ('NMMF', nmf), ('MF', svd))
+for name, algo in algos:
+  algo.fit(trainset)
+  pred = algo.test(testset)
+  y_true  = [0 if p.r_ui < threshold else 1 for p in pred]
+  y_score = [p.est for p in pred]
+  fpr, tpr, thresholds = roc_curve(y_true=y_true, y_score=y_score)
+  roc_auc = auc(fpr, tpr)
+  label =  name + ' ROC curve (area = %0.2f)' % roc_auc
+  plt.plot(fpr, tpr, label=label)
+
+plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve for Threshold = {:.1f}'.format(threshold))
+plt.legend()
+plt.show(0)
+
+"""
+Question 36: 
+Plot average precision (Y-axis) against t (X-axis) for the ranking obtained using 
+k-NN collaborative filter predictions. Also, plot the average recall (Y-axis) 
+against t (X-axis) and average precision (Y-axis) against average
+recall (X-axis). Use the k found in question 11 and sweep t from 1 to 25 in step
+sizes of 1. For each plot, briefly comment on the shape of the plot.
+"""
+def calc_precision_recall(pred, t, threshold=3.0):
+  user_ratings = defaultdict(list)
+  for uid,_,r_ui, est, _ in pred:
+    bisect.insort(user_ratings[uid], (est, r_ui))
+
+  precision, recall  = dict(), dict()
+  for uid, ratings in user_ratings.items():
+    if len(ratings) < t:
+      continue
+    # |G|
+    G = sum((r_ui >= threshold) for (_, r_ui) in ratings)
+    if int(G) == 0:
+      continue
+    StnG = sum(((est >= threshold) and (est >= threshold)) for (est, r_ui) in ratings[-t:])
+    precision[uid], recall[uid] = StnG / t, StnG / G
+  return (precision, recall)
+
+
+kf = KFold(n_splits=10)
+ts = list(range(1,25+1))
+threshold = 3
+
+sim_options = {
+  'name': 'pearson',
+  'user_based': True
+}
+
+knn_prec, knn_recall = [], []
+for t in ts:
+  precision_sum, recall_sum = 0.0, 0.0
+  knn = KNNWithMeans(k=20, sim_options=sim_options)
+  for trainset, testset in kf.split(data):
+    knn.fit(trainset)
+    pred = knn.test(testset)
+    precision, recall = calc_precision_recall(pred, int(t), threshold)
+    precision_sum += np.mean(list(precision.values()))
+    recall_sum += np.mean(list(recall.values()))
+  precision_avg = precision_sum / kf.n_splits
+  recall_avg = recall_sum / kf.n_splits
+  print(f"kNN t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
+  knn_prec.append(precision_avg)
+  knn_recall.append(recall_avg)
+
+plt.figure()
+plt.subplot(2,1,1)
+plt.title("kNN: Avg Precision vs t with 10 fold CV")
+plt.ylabel("Avg Precision")
+plt.plot(ts, knn_prec)
+
+plt.subplot(2,1,2)
+plt.title("kNN: Avg Recall vs t with 10 fold CV")
+plt.xlabel("t (recommend item set size)")
+plt.ylabel("Avg Recall")
+plt.plot(ts, knn_recall)
+
+plt.figure()
+plt.title("kNN: Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(knn_recall, knn_prec)
+plt.show(0)
+
+"""
+Question 37
+"""
+nmf_prec, nmf_recall = [], []
+for t in ts:
+  precision_sum, recall_sum = 0.0, 0.0
+  nmf = NMF(n_factors=20, biased=False)
+  for trainset, testset in kf.split(data):
+    nmf.fit(trainset)
+    pred = nmf.test(testset)
+    precision, recall = calc_precision_recall(pred, int(t), threshold)
+    precision_sum += np.mean(list(precision.values()))
+    recall_sum += np.mean(list(recall.values()))
+  precision_avg = precision_sum / kf.n_splits
+  recall_avg = recall_sum / kf.n_splits
+  print(f"NMF t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
+  nmf_prec.append(precision_avg)
+  nmf_recall.append(recall_avg)
+
+plt.figure()
+plt.subplot(2,1,1)
+plt.title("NMF: Avg Precision vs t with 10 fold CV")
+plt.ylabel("Avg Precision")
+plt.plot(ts, nmf_prec)
+
+plt.subplot(2,1,2)
+plt.title("NMF: Avg Recall vs t with 10 fold CV")
+plt.xlabel("t (recommend item set size)")
+plt.ylabel("Avg Recall")
+plt.plot(ts, nmf_recall)
+
+plt.figure()
+plt.title("NMF: Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(nmf_recall, nmf_prec)
+plt.show(0)
+
+"""
+Question 38
+"""
+mf_prec, mf_recall = [], []
+for t in ts:
+  precision_sum, recall_sum = 0.0, 0.0
+  svd = SVD(n_factors=20)
+  for trainset, testset in kf.split(data):
+    svd.fit(trainset)
+    pred = svd.test(testset)
+    precision, recall = calc_precision_recall(pred, int(t), threshold)
+    precision_sum += np.mean(list(precision.values()))
+    recall_sum += np.mean(list(recall.values()))
+  precision_avg = precision_sum / kf.n_splits
+  recall_avg = recall_sum / kf.n_splits
+  print(f"MF t: {t}, precision_avg: {precision_avg}, recall_avg: {recall_avg}")
+  mf_prec.append(precision_avg)
+  mf_recall.append(recall_avg)
+
+plt.figure()
+plt.subplot(2,1,1)
+plt.title("MF: Avg Precision vs t with 10 fold CV")
+plt.ylabel("Avg Precision")
+plt.plot(ts, mf_prec)
+
+plt.subplot(2,1,2)
+plt.title("MF: Avg Recall vs t with 10 fold CV")
+plt.xlabel("t (recommend item set size)")
+plt.ylabel("Avg Recall")
+plt.plot(ts, mf_recall)
+
+plt.figure()
+plt.title("MF: Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(mf_recall, mf_prec)
+plt.show(0)
+
+"""
+Question 39
+"""
+plt.figure()
+plt.title("Avg Precision vs Avg Recall with 10 fold CV")
+plt.xlabel("Avg Recall")
+plt.ylabel("Avg Precision")
+plt.plot(knn_recall, knn_prec, label='kNN')
+plt.plot(nmf_recall, nmf_prec, label='NMF')
+plt.plot(mf_recall, mf_prec, label='MF')
+plt.legend()
+plt.show(0)
