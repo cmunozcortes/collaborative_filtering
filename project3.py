@@ -9,10 +9,14 @@ http://files.grouplens.org/datasets/movielens/ml-latest-small.zip
 import os
 import pdb
 import pickle
-import bisect # use to keep a sorted list
+import bisect  # use to keep a sorted list
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import random
+
+np.random.seed(42)
+random.seed(42)
 
 from surprise import KNNBasic, AlgoBase
 from surprise.prediction_algorithms.matrix_factorization import NMF, SVD
@@ -120,7 +124,7 @@ Question 6: Compute the variance of the rating values received by each movie
 """
 Rm_var = R.std(axis=0) ** 2
 bin_min, bin_max = Rm_var.min(), Rm_var.max()
-bins = bins = np.arange(bin_min, bin_max + bin_width, bin_width)  
+bins = bins = np.arange(bin_min, bin_max + bin_width, bin_width)
 
 if PLOT_RESULT:
   plt.figure()
@@ -650,7 +654,7 @@ if USE_PICKLED_RESULTS and os.path.isfile('mf_bias_rmse.pickle') and os.path.isf
     rmse_high_var = pickle.load(handle)
 else:
   for k in k_values:
-    algo = SVD(n_factors=k)
+    algo = SVD(n_factors=k, random_state=42)
     for counter, [trainset, testset] in enumerate(kf.split(data)):
       print('\nk = {0:d}, fold = {1:d}'.format(k, counter + 1))
       algo.fit(trainset)
@@ -733,12 +737,12 @@ if PLOT_RESULT:
 Question 29: MF with Bias ROC Plots
 """
 
-k = 46  # best k value found in question 25
+k = 50  # best k value found in question 25
 threshold_values = [2.5, 3, 3.5, 4]
 
 for threshold in threshold_values:
   train_set, test_set = train_test_split(data, test_size = 0.1)
-  algo = SVD(n_factors=k)
+  algo = SVD(n_factors=k, random_state=42)
   algo.fit(train_set)
   predictions = algo.test(test_set)
 
@@ -789,7 +793,7 @@ for _, testset in kf.split(data):
 print('Naive Collab Fillter RMSE for 10 folds CV: ', np.mean(kf_rmse))
 
 """
-Question 31: 
+Question 31:
 """
 kf_rmse = []
 for _, testset in kf.split(data):
@@ -799,7 +803,7 @@ for _, testset in kf.split(data):
 print('Naive Collab Fillter RMSE for 10 folds CV (popular testset): ', np.mean(kf_rmse))
 
 """
-Question 32: 
+Question 32:
 """
 kf_rmse = []
 for _, testset in kf.split(data):
@@ -809,7 +813,7 @@ for _, testset in kf.split(data):
 print('Naive Collab Fillter RMSE for 10 folds CV (not popular testset): ', np.mean(kf_rmse))
 
 """
-Question 33: 
+Question 33:
 """
 kf_rmse = []
 for _, testset in kf.split(data):
@@ -826,7 +830,7 @@ compare the performance of the filters in predicting the ratings of the movies.
 
 k-NN : k = 20
 NNMF : k = 18 or 20
-MF   : k = 20 
+MF   : k = 50
 """
 trainset, testset = train_test_split(data, test_size = 0.1)
 sim_options = {
@@ -835,7 +839,7 @@ sim_options = {
 }
 knn = KNNWithMeans(k=20, sim_options=sim_options)
 nmf = NMF(n_factors=20, biased=False)
-svd = SVD(n_factors=50)
+svd = SVD(n_factors=50, random_state=42)
 
 plt.figure()
 threshold = 3
@@ -860,9 +864,9 @@ plt.legend()
 plt.show(0)
 
 """
-Question 36: 
-Plot average precision (Y-axis) against t (X-axis) for the ranking obtained using 
-k-NN collaborative filter predictions. Also, plot the average recall (Y-axis) 
+Question 36:
+Plot average precision (Y-axis) against t (X-axis) for the ranking obtained using
+k-NN collaborative filter predictions. Also, plot the average recall (Y-axis)
 against t (X-axis) and average precision (Y-axis) against average
 recall (X-axis). Use the k found in question 11 and sweep t from 1 to 25 in step
 sizes of 1. For each plot, briefly comment on the shape of the plot.
@@ -972,7 +976,7 @@ Question 38
 mf_prec, mf_recall = [], []
 for t in ts:
   precision_sum, recall_sum = 0.0, 0.0
-  svd = SVD(n_factors=50)
+  svd = SVD(n_factors=50, random_state=42)
   for trainset, testset in kf.split(data):
     svd.fit(trainset)
     pred = svd.test(testset)
