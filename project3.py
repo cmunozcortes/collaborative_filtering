@@ -835,7 +835,7 @@ sim_options = {
 }
 knn = KNNWithMeans(k=20, sim_options=sim_options)
 nmf = NMF(n_factors=20, biased=False)
-svd = SVD(n_factors=20)
+svd = SVD(n_factors=50)
 
 plt.figure()
 threshold = 3
@@ -883,7 +883,6 @@ def calc_precision_recall(pred, t, threshold=3.0):
     StnG = sum(((est >= threshold) and (est >= threshold)) for (est, r_ui) in ratings[-t:])
     precision[uid], recall[uid] = StnG / t, StnG / G
   return (precision, recall)
-
 
 kf = KFold(n_splits=10)
 ts = list(range(1,25+1))
@@ -973,7 +972,7 @@ Question 38
 mf_prec, mf_recall = [], []
 for t in ts:
   precision_sum, recall_sum = 0.0, 0.0
-  svd = SVD(n_factors=20)
+  svd = SVD(n_factors=50)
   for trainset, testset in kf.split(data):
     svd.fit(trainset)
     pred = svd.test(testset)
